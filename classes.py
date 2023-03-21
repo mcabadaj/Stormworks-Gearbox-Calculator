@@ -120,15 +120,21 @@ class Transmission:
         return sort
 
     @classmethod
-    def write_to_file(cls, filepath: str):
+    def write_to_file(cls, filepath: str, sep=";"):
         with open(filepath, "w") as f:
-            f.write("config;" + ";".join([f"setting_{i};ratio_{i}" for i in range(len(cls.__instances[0].ratios))]))
+            f.write(
+                f"config{sep}"
+                + sep.join([f"setting_{i+1}{sep}ratio_{i+1}" for i in range(len(cls.__instances[0].ratios))])
+                + "\n"
+            )
             for inst in cls.__instances:
                 f.write(
                     "".join([str(g) for g in inst.gearboxes])
-                    + "".join([f";{o};{r}" for o, r in zip(inst.order, inst.ratios)])
+                    + "".join([f"{sep}{o}{sep}{r}" for o, r in zip(inst.order, inst.ratios)])
                     + "\n"
                 )
+                
+        print("Exported")
 
     ### Instance Methods ###
 

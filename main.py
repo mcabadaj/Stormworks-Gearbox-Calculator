@@ -10,7 +10,7 @@ def main():
     tg.generate_transmissions(3, inplace=True)
     tg.sort_trans(tg.SortOrder.SPEED, inplace=True)
     tg.write_to_file("./data/data.csv")
-    print_trans(tg.get_transmissions())
+    # print_trans(tg.get_transmissions())
 
 
 if __name__ == "__main__":
