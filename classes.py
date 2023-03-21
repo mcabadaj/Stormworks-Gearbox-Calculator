@@ -59,7 +59,81 @@ class Gearbox:
 
 
 class Transmission:
+
+    __instances: list["Transmission"] = []
+
+    class SortOrder(Enum):
+        SPEED = "speed"
+        TORQUE = "torque"
+
+    @classmethod
+    def get_transmissions(cls) -> list["Transmission"]:
+        return cls.__instances
+
+    @classmethod
+    def set_transmissions(cls, trans: list["Transmission"]):
+        cls.__instances = trans
+
+    @classmethod
+    def clear(cls):
+        cls.set_transmissions([])
+
+    @classmethod
+    def generate_transmissions(
+        cls, gearbox_nr: int, duplicate_transmissions=False, duplicate_ratios=False, *, inplace=False
+    ) -> list["Transmission"]:
+
+        n = gearbox_nr
+
+        # Gearbox configurations
+        configs = Gearbox.configurations()
+
+        # Gearbox combinations
+        groups = list(set(perms(configs, n)))
+
+        transmissions: list[Transmission] = []
+        for group in groups:
+            t = Transmission(group)
+            if not duplicate_ratios and len(set(t._ratios)) != len(t._ratios):
+                # Transmission has unwanted duplicate ratios
+                continue
+            transmissions.append(t)
+        transmissions = transmissions if duplicate_transmissions else list(set(transmissions))
+        if inplace:
+            cls.__instances = transmissions
+        return transmissions
+
+    @classmethod
+    def filter_trans(cls, min_r=0, max_r=1000, *, inplace=False):
+        filt = [t for t in cls.__instances if not any([r < min_r or r > max_r] for r in t.ratios)]
+        if inplace:
+            cls.__instances = filt
+        return filt
+
+    @classmethod
+    def sort_trans(cls, sort_by: SortOrder, *, inplace=False):
+        sort = sorted(cls.__instances, key=lambda t: sum(t.ratios))
+        if sort_by == cls.SortOrder.TORQUE:
+            sort.reverse()
+        if inplace:
+            cls.__instances = sort
+        return sort
+
+    @classmethod
+    def write_to_file(cls, filepath: str):
+        with open(filepath, "w") as f:
+            f.write("config;" + ";".join([f"setting_{i};ratio_{i}" for i in range(len(cls.__instances[0].ratios))]))
+            for inst in cls.__instances:
+                f.write(
+                    "".join([str(g) for g in inst.gearboxes])
+                    + "".join([f";{o};{r}" for o, r in zip(inst.order, inst.ratios)])
+                    + "\n"
+                )
+
+    ### Instance Methods ###
+
     def __init__(self, gearboxes: list[Gearbox], final="1:1") -> None:
+
         self.gearboxes = gearboxes
         self.final = Gearing[final]
         self.calculate_ratios()
@@ -114,48 +188,3 @@ class Transmission:
 
     def __eq__(self, __o: object) -> bool:
         return hash(self) == hash(__o)
-
-
-class TransmissionGenerator:
-    class SortOrder(Enum):
-        SPEED = "speed"
-        TORQUE = "torque"
-
-    def generate_transmissions(
-        self, gearbox_nr: int, duplicate_transmissions=False, duplicate_ratios=False
-    ) -> list[Transmission]:
-
-        n = gearbox_nr
-
-        # Gearbox configurations
-        configs = Gearbox.configurations()
-
-        # Gearbox combinations
-        groups = list(set(perms(configs, n)))
-
-        transmissions: list[Transmission] = []
-        for group in groups:
-            t = Transmission(group)
-            if not duplicate_ratios and len(set(t._ratios)) != len(t._ratios):
-                # Transmission has unwanted duplicate ratios
-                continue
-            transmissions.append(t)
-        transmissions = transmissions if duplicate_transmissions else list(set(transmissions))
-        self._trans = transmissions
-        return transmissions
-
-    def filter_trans(self, min_r=0, max_r=1000, *, inplace=False):
-        filt = [t for t in self._trans if not any([r < min_r or r > max_r] for r in t.ratios)]
-        if inplace:
-            self._trans = filt
-            return None
-        return filt
-
-    def sort_trans(self, sort_by: SortOrder, *, inplace=False):
-        sort = sorted(self._trans, key=lambda t: sum(t.ratios))
-        if sort_by == self.SortOrder.TORQUE:
-            sort.reverse()
-        if inplace:
-            self._trans = sort
-            return None
-        return sort
