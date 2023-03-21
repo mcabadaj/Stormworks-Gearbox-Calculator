@@ -20,6 +20,15 @@ Gearing = {
 
 
 class Gearbox:
+    @staticmethod
+    def configurations() -> list["Gearbox"]:
+        configs = []
+        for r_on in Gearing:
+            for r_off in Gearing:
+                for d in Direction:
+                    configs.append(Gearbox(d, r_off, r_on))
+        return configs
+
     def __init__(self, direction: Direction, gearing_off="1:1", gearing_on="1:1"):
         self._dir = direction
         self._g_off = gearing_off
@@ -95,7 +104,44 @@ class Transmission:
         res = "\n".join(
             [
                 "".join([str(g) for g in self.gearboxes]),
-                "\n".join([f"{n}:"+f"{c}"[1:-1] for n, c in enumerate(zip(self.order, self.ratios), 1)]),
+                "\n".join([f"{n}:" + f"{c}"[1:-1] for n, c in enumerate(zip(self.order, self.ratios), 1)]),
             ]
         )
         return res
+
+    def __hash__(self) -> int:
+        return hash(str(self.ratios + [self.final, self.average()] + self.deltas()))
+
+    def __eq__(self, __o: object) -> bool:
+        return hash(self) == hash(__o)
+
+
+class TransmissionGenerator:
+    def generate_transmissions(
+        self,
+        gearbox_nr: int,
+        duplicate_transmissions=False,
+        duplicate_ratios=False,
+    ) -> list[Transmission]:
+
+        n = gearbox_nr
+
+        # Gearbox configurations
+        configs = Gearbox.configurations()
+
+        # Gearbox combinations
+        groups = list(set(perms(configs, n)))
+
+        transmissions: list[Transmission] = []
+        for group in groups:
+            t = Transmission(group)
+            if not duplicate_ratios and len(set(t._ratios)) != len(t._ratios):
+                # Transmission has unwanted duplicate ratios
+                continue
+            transmissions.append(t)
+        transmissions = transmissions if duplicate_transmissions else list(set(transmissions))
+        self._trans = transmissions
+        return transmissions
+
+    def filter_trans(self, min_r=0, max_r=1000):
+        return [t for t in self._trans if not any([r < min_r or r > max_r] for r in t.ratios)]
