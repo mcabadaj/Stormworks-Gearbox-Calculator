@@ -23,8 +23,8 @@ class Gearbox:
     @staticmethod
     def configurations() -> list["Gearbox"]:
         configs = []
-        for r_on in Gearing:
-            for r_off in Gearing:
+        for r_off in Gearing:
+            for r_on in Gearing:
                 for d in Direction:
                     configs.append(Gearbox(d, r_off, r_on))
         return configs
@@ -117,11 +117,12 @@ class Transmission:
 
 
 class TransmissionGenerator:
+    class SortOrder(Enum):
+        SPEED = "speed"
+        TORQUE = "torque"
+
     def generate_transmissions(
-        self,
-        gearbox_nr: int,
-        duplicate_transmissions=False,
-        duplicate_ratios=False,
+        self, gearbox_nr: int, duplicate_transmissions=False, duplicate_ratios=False
     ) -> list[Transmission]:
 
         n = gearbox_nr
@@ -143,5 +144,18 @@ class TransmissionGenerator:
         self._trans = transmissions
         return transmissions
 
-    def filter_trans(self, min_r=0, max_r=1000):
-        return [t for t in self._trans if not any([r < min_r or r > max_r] for r in t.ratios)]
+    def filter_trans(self, min_r=0, max_r=1000, *, inplace=False):
+        filt = [t for t in self._trans if not any([r < min_r or r > max_r] for r in t.ratios)]
+        if inplace:
+            self._trans = filt
+            return None
+        return filt
+
+    def sort_trans(self, sort_by: SortOrder, *, inplace=False):
+        sort = sorted(self._trans, key=lambda t: sum(t.ratios))
+        if sort_by == self.SortOrder.TORQUE:
+            sort.reverse()
+        if inplace:
+            self._trans = sort
+            return None
+        return sort
